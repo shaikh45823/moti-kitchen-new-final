@@ -1,0 +1,20 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moti Kitchen Chat</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,sans-serif}body{min-height:100vh;background:linear-gradient(rgba(255,248,235,.78),rgba(255,248,235,.88)),url('/static/moti-background.png') center/cover fixed}header{position:sticky;top:0;z-index:5;height:58px;background:rgba(58,29,15,.94);color:white;display:flex;align-items:center;padding:0 8px;box-shadow:0 3px 12px rgba(0,0,0,.2)}header button{background:none;color:white;border:0;padding:10px;font-size:14px}#title{flex:1;text-align:center;font-weight:bold}#messages{padding:12px 12px 86px;max-width:850px;margin:auto}.msg{background:rgba(255,255,255,.94);padding:10px;border-radius:14px;margin:8px 0;box-shadow:0 3px 12px rgba(70,40,20,.08);overflow:hidden}.delete{float:right;color:#b00000;border:0;background:none;padding:2px 4px}.msg img{max-width:min(320px,90vw);border-radius:10px;margin-top:6px;display:block}footer{position:fixed;z-index:6;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);padding:8px;display:flex;gap:5px;box-shadow:0 -3px 12px rgba(0,0,0,.12)}#text{flex:1;padding:11px;border:1px solid #ddd;border-radius:10px}footer button{background:#3a1d0f;color:white;border:0;border-radius:10px;padding:10px 12px} .empty{text-align:center;color:#6d584a;margin-top:30px}
+</style>
+<header><button onclick="goBack()">← Back</button><div id="title">🍳 Moti Kitchen</div><button onclick="exitRoom()">🚪 Exit Room</button></header>
+<div id="messages"></div>
+<footer><input id="text" placeholder="Write a message..."><input id="file" type="file" accept="image/*" hidden><button onclick="file.click()">📷</button><button onclick="send()">Send</button></footer>
+<script>
+const rid="{{room_id}}";
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+async function load(){let r=await fetch("/api/messages/"+rid);if(r.status===404){location.reload();return}let d=await r.json();messages.innerHTML="";if(!d.messages.length){messages.innerHTML='<div class="empty">No messages yet 🍳</div>';return}d.messages.forEach(m=>{let x=document.createElement("div");x.className="msg";let b=m.kind==="image"?`<img src="${esc(m.content)}"><br><a href="${esc(m.content)}" download>Save / Download</a>`:`<div>${esc(m.content)}</div>`;x.innerHTML=`<button class="delete" onclick="del(${m.id})">Delete</button><b>${esc(m.username)}</b>${b}`;messages.appendChild(x)})}
+async function send(){let v=text.value.trim();if(!v)return;let f=new FormData();f.append("text",v);let r=await fetch("/api/send/"+rid,{method:"POST",body:f});if(r.ok){text.value="";load()}}
+file.onchange=async()=>{if(!file.files[0])return;let f=new FormData();f.append("image",file.files[0]);let r=await fetch("/api/send-image/"+rid,{method:"POST",body:f});file.value="";if(r.ok)load()}
+async function del(id){await fetch(`/api/delete/${rid}/${id}`,{method:"POST"});load()}
+async function goBack(){await fetch("/api/back/"+rid,{method:"POST"});location.href="/room/"+rid}
+async function exitRoom(){if(!confirm("Exit Room? This closes it for everyone."))return;await fetch("/api/exit/"+rid,{method:"POST"});location.href="/room/"+rid}
+history.pushState({chat:true},"",location.href);onpopstate=()=>{history.pushState({chat:true},"",location.href);goBack()};setInterval(load,2000);load();
+</script>
